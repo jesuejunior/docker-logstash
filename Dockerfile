@@ -1,48 +1,27 @@
-FROM java:8-jre
+FROM jolokia/alpine-jre-8
+MAINTAINER Jesue Junior <jesuesousa@gmail.com>
 
-# install plugin dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-		libzmq3 \
-	&& rm -rf /var/lib/apt/lists/*
+# Set environment variables
+ENV LOGSTASH_NAME logstash
+ENV LOGSTASH_VERSION 1.5.3
+ENV LOGSTASH_URL https://download.elastic.co/$LOGSTASH_NAME/$LOGSTASH_NAME/$LOGSTASH_NAME-$LOGSTASH_VERSION.tar.gz
+ENV LOGSTASH_CONFIG /opt/$LOGSTASH_NAME/logstash.conf
 
-# the "ffi-rzmq-core" gem is very picky about where it looks for libzmq.so
-RUN mkdir -p /usr/local/lib \
-	&& ln -s /usr/lib/*/libzmq.so.3 /usr/local/lib/libzmq.so
+ADD $LOGSTASH_URL /tmp
 
-# grab gosu for easy step-down from root
-ENV GOSU_VERSION 1.7
-RUN set -x \
-	&& wget -O /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$(dpkg --print-architecture)" \
-	&& wget -O /usr/local/bin/gosu.asc "https://github.com/tianon/gosu/releases/download/$GOSU_VERSION/gosu-$(dpkg --print-architecture).asc" \
-	&& export GNUPGHOME="$(mktemp -d)" \
-	&& gpg --keyserver ha.pool.sks-keyservers.net --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 \
-	&& gpg --batch --verify /usr/local/bin/gosu.asc /usr/local/bin/gosu \
-	&& rm -r "$GNUPGHOME" /usr/local/bin/gosu.asc \
-	&& chmod +x /usr/local/bin/gosu \
-	&& gosu nobody true
-
-# https://www.elastic.co/guide/en/logstash/2.3/package-repositories.html
-# https://packages.elastic.co/GPG-KEY-elasticsearch
-RUN apt-key adv --keyserver ha.pool.sks-keyservers.net --recv-keys 46095ACC8548582C1A2699A9D27D666CD88E42B4
-
-ENV LOGSTASH_MAJOR 2.3
-ENV LOGSTASH_VERSION 1:2.3.1-1
-
-RUN echo "deb http://packages.elastic.co/logstash/${LOGSTASH_MAJOR}/debian stable main" > /etc/apt/sources.list.d/logstash.list
-
-RUN set -x \
-	&& apt-get update \
-	&& apt-get install -y --no-install-recommends logstash=$LOGSTASH_VERSION \
-	&& rm -rf /var/lib/apt/lists/* \
-	&& /opt/logstash/bin/logstash-plugin install logstash-input-log4j logstash-input-lumberjack \
+RUN apk update \
+    && apk add bash openssl \
+    && mkdir -p /opt \
+    && tar xzf /tmp/$LOGSTASH_NAME-$LOGSTASH_VERSION.tar.gz -C /opt/ \
+    && ln -sf /opt/$LOGSTASH_NAME-$LOGSTASH_VERSION /opt/$LOGSTASH_NAME \
+    && rm -rf /tmp/*.tar.gz /var/cache/apk/* \
+    && /opt/$LOGSTASH_NAME/bin/plugin install logstash-input-log4j logstash-input-lumberjack \
 	 logstash-input-tcp logstash-input-udp logstash-output-elasticsearch
 
-ENV PATH /opt/logstash/bin:$PATH
+# Add logstash config file
+COPY conf/logstash.conf /opt/$LOGSTASH_NAME/logstash.conf
 
-COPY docker-entrypoint.sh /
-COPY conf/logstash.conf /etc/logstash/
+EXPOSE 28777 28778 28779
+WORKDIR /opt/$LOGSTASH_NAME
 
-EXPOSE 28777 28778
-
-ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["logstash", "agent"]
+CMD /opt/$LOGSTASH_NAME/bin/logstash -f $LOGSTASH_CONFIG
