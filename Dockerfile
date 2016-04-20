@@ -40,8 +40,9 @@ RUN set -x \
 ENV PATH /opt/logstash/bin:$PATH
 
 COPY docker-entrypoint.sh /
+COPY conf/logstash.conf /etc/logstash/
 
-EXPOSE 28777
+EXPOSE 28777 28778
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["logstash", "agent"]
