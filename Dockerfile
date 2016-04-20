@@ -34,7 +34,7 @@ RUN set -x \
 	&& apt-get update \
 	&& apt-get install -y --no-install-recommends logstash=$LOGSTASH_VERSION \
 	&& rm -rf /var/lib/apt/lists/* \
-	&& /opt/logstash/bin/plugin install logstash-input-log4j2 logstash-input-log4j logstash-input-lumberjack \
+	&& /opt/logstash/bin/logstash-plugin install logstash-input-log4j logstash-input-lumberjack \
 	 logstash-input-tcp logstash-input-udp logstash-output-elasticsearch
 
 ENV PATH /opt/logstash/bin:$PATH
