@@ -1,15 +1,29 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
-set -e
+# execute any pre-init scripts, useful for images
+# based on this image
+for i in /*sh
+do
+	if [ -e "${i}" ]; then
+		echo "[i] processing $i"
+		. "${i}"
+	fi
+done
 
-# Add logstash as command if needed
-if [ "${1:0:1}" = '-' ]; then
-	set -- logstash "$@"
+if [ -f $LOGSTASH_CONFIG ]; then
+	echo "[i] Config file exists."
 fi
 
-# Run as user "logstash" if the command is "logstash"
-if [ "$1" = 'logstash' ]; then
-	set -- gosu logstash "$@"
-fi
+# execute any pre-exec scripts, useful for images
+# based on this image
+for i in /*sh
+do
+	if [ -e "${i}" ]; then
+		echo "[i] processing $i"
+		. ${i}
+	fi
+done
 
-exec "$@"
+echo "[i] Starting logstash"
+/opt/$LOGSTASH_NAME/bin/logstash -f $LOGSTASH_CONFIG
+echo "[i] Logstash finished"
